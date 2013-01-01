@@ -4,12 +4,14 @@ class TestWechatListener extends WechatListener{
 
 	function onFirst($textRequest){
 	}
-	function onText($textRequest){
+	function onText(TextRequest $textRequest){
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,$textRequest->content);
 	}
-	function onLocation($locationRequest){
+	function onLocation(LocationRequest $locationRequest){
+		return new TextResponse($locationRequest->fromUserName,$locationRequest->toUserName,$locationRequest->location_X.",".$locationRequest->location_Y);
 	}
-	function onImage($imageRequest){
+	function onImage(ImageRequest $imageRequest){
+		return new TextResponse($imageRequest->fromUserName,$imageRequest->toUserName,$imageRequest->picUrl);
 	}
 	function checkSignature(){
 		return true;

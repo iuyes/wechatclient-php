@@ -176,10 +176,10 @@ abstract class WechatListener{
 		$sha1 = sha1($nonce.$timestamp.$this->token);
 		return $sha1 == $signature;
 	}
-	protected function onFirst($textRequest){
+	protected function onFirst(TextRequest $textRequest){
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,time(),'Hi');
 	}
-	abstract function onText($textRequest);
-	abstract function onLocation($locationRequest);
-	abstract function onImage($imageRequest);
+	abstract function onText(TextRequest $textRequest);
+	abstract function onLocation(LocationRequest $locationRequest);
+	abstract function onImage(ImageRequest $imageRequest);
 }
