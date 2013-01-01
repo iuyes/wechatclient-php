@@ -18,7 +18,6 @@ class WechatClient{
 				if($postObj){
 					$msgType = $postObj->MsgType;
 					$response = null;
-
 					if($msgType == 'text') {
 						$textRequest = $this->parseText($postObj);
 						if($textRequest->content == 'Hello2BizUser') $response = $this->listener->onFirst($textRequest);
@@ -168,13 +167,21 @@ class NewsItem {
 }
 
 abstract class WechatListener{
+	public function checkSignature(){
+		$signature = $_GET["signature"];
+		$timestamp = $_GET["timestamp"];
+		$nonce = $_GET["nonce"];
 
-	protected function checkSignature(){
-		$nonce = $_GET['nonce'];
-		$timestamp = $_GET['timestamp'];
-		$signature = $_GET['signature'];
-		$sha1 = sha1($nonce.$timestamp.$this->token);
-		return $sha1 == $signature;
+		$token = TOKEN;
+		$tmpArr = array($token, $timestamp, $nonce);
+		sort($tmpArr);
+		$tmpStr = implode( $tmpArr );
+		$tmpStr = sha1( $tmpStr );
+		if( $tmpStr == $signature ){
+			return true;
+		}else{
+			return false;
+		}
 	}
 	protected function onFirst(TextRequest $textRequest){
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,time(),'Hi');

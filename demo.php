@@ -1,5 +1,6 @@
 <?php
-
+define('TOKEN','YOUR_TOKEN');
+require_once 'WechatClient.php';
 class TestWechatListener extends WechatListener{
 
 	function onFirst($textRequest){
@@ -13,10 +14,6 @@ class TestWechatListener extends WechatListener{
 	function onImage(ImageRequest $imageRequest){
 		return new TextResponse($imageRequest->fromUserName,$imageRequest->toUserName,$imageRequest->picUrl);
 	}
-	function checkSignature(){
-		return true;
-	}
-
 }
 
 $wechatClient = new WechatClient();
