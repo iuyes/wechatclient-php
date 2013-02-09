@@ -25,6 +25,7 @@ class WechatClient{
 					}
 					if($msgType == 'location') $response = $this->listener->onLocation($this->parseLocation($postObj));
 					if($msgType == 'image') $response = $this->listener->onImage($this->parseImage($postObj));
+					if($msgType == 'link') $response = $this->listener->onLink($this->parseLink($postObj));
 					if($response) {
 						if($print) echo (string)$response;
 						else return $response;
@@ -49,6 +50,7 @@ class WechatClient{
 		$request->createTime = $xml->CreateTime;
 		$request->msgType = $xml->MsgType;
 		$request->content = $xml->Content;
+		$request->msgId = $xml->MsgId;
 		return $request;
 	}
 	public function parseLocation($xml){
@@ -61,6 +63,7 @@ class WechatClient{
 		$request->location_Y = $xml->Location_Y;
 		$request->label = $xml->Label;
 		$request->scale = $xml->Scale;
+		$request->msgId = $xml->MsgId;
 		return $request;
 	}
 	public function parseImage($xml){
@@ -70,12 +73,25 @@ class WechatClient{
 		$request->createTime = $xml->CreateTime;
 		$request->msgType = $xml->MsgType;
 		$request->picUrl = $xml->PicUrl;
+		$request->msgId = $xml->MsgId;
+		return $request;
+	}
+	public function parseLink($xml){
+		$request = new LinkRequest();
+		$request->fromUserName = $xml->FromUserName[0];
+		$request->toUserName = $xml->ToUserName[0];
+		$request->createTime = $xml->CreateTime;
+		$request->msgType = $xml->MsgType;
+		$request->title = $xml->Title;
+		$request->description = $xml->Description;
+		$request->url = $xml->Url;
+		$request->msgId = $xml->MsgId;
 		return $request;
 	}
 }
 
 class WechatRequest{
-	public $toUserName,$fromUserName,$createTime,$msgType;
+	public $toUserName,$fromUserName,$createTime,$msgType,$msgId;
 }
 class TextRequest extends WechatRequest{
 	public $msgType = 'text';
@@ -89,6 +105,11 @@ class LocationRequest extends WechatRequest{
 class ImageRequest extends WechatRequest{
 	public $msgType = 'image';
 	public $picUrl;
+}
+
+class LinkRequest extends WechatRequest{
+	public $msgType = 'link';
+	public $title,$description,$url;
 }
 
 class WechatResponse {
@@ -166,6 +187,38 @@ class NewsItem {
 	}
 }
 
+class MusicResponse extends WechatResponse{
+	private $template = "
+		<xml>
+			<ToUserName><![CDATA[%s]]></ToUserName>
+			<FromUserName><![CDATA[%s]]></FromUserName>
+			<CreateTime>%s</CreateTime>
+			<MsgType><![CDATA[music]]></MsgType>
+			<Content><![CDATA[%s]]></Content>
+			<Music>
+				<Title><![CDATA[%s]]></Title>
+				<Description><![CDATA[%s]]></Description>
+				<MusicUrl><![CDATA[%s]]></MusicUrl>
+				<HQMusicUrl><![CDATA[%s]]></HQMusicUrl>
+			</Music>
+			<FuncFlag>0<FuncFlag>
+		</xml>";
+	public $title,$description,$musicUrl,$hqMusicUrl;
+	public function __construct($toUserName,$fromUserName,$title,$description,$musicUrl,$hqMusicUrl){
+		$this->toUserName = $toUserName;
+		$this->fromUserName = $fromUserName;
+		$this->createTime = time();
+		$this->title = $title;
+		$this->description = $description;
+		$this->musicUrl = $musicUrl;
+		$this->hqMusicUrl = $hqMusicUrl;
+	}
+	public function __toString(){
+		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->title,$this->description,$this->musicUrl,$this->hqMusicUrl);
+		return $responseStr;
+	}
+}
+
 abstract class WechatListener{
 	public function checkSignature(){
 		$signature = $_GET["signature"];
@@ -189,4 +242,6 @@ abstract class WechatListener{
 	abstract function onText(TextRequest $textRequest);
 	abstract function onLocation(LocationRequest $locationRequest);
 	abstract function onImage(ImageRequest $imageRequest);
+	abstract function onLink(LinkRequest $imageRequest);
+	//abstract function onEvent(EventRequest $imageRequest); //TODO
 }
