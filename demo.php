@@ -3,7 +3,7 @@ define('TOKEN','YOUR_TOKEN');
 require_once 'WechatClient.php';
 class TestWechatListener extends WechatListener{
 
-	function onFirst($textRequest){ //用户第一次关注时
+	function onFirst(TextRequest $textRequest){ //用户第一次关注时
 	}
 	function onText(TextRequest $textRequest){ //用户发送文本内容时
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,$textRequest->content);
@@ -13,6 +13,12 @@ class TestWechatListener extends WechatListener{
 	}
 	function onImage(ImageRequest $imageRequest){ //用户发送图片信息时
 		return new TextResponse($imageRequest->fromUserName,$imageRequest->toUserName,$imageRequest->picUrl);
+	}
+	function onLink(LinkRequest $imageRequest){
+
+	}
+	function onEvent(EventRequest $imageRequest){
+
 	}
 }
 

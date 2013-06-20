@@ -26,6 +26,7 @@ class WechatClient{
 					if($msgType == 'location') $response = $this->listener->onLocation($this->parseLocation($postObj));
 					if($msgType == 'image') $response = $this->listener->onImage($this->parseImage($postObj));
 					if($msgType == 'link') $response = $this->listener->onLink($this->parseLink($postObj));
+					if($msgType == 'event') $response = $this->listener->onEvent($this->parseEvent($postObj));
 					if($response) {
 						if($print) echo (string)$response;
 						else return $response;
@@ -88,6 +89,16 @@ class WechatClient{
 		$request->msgId = $xml->MsgId;
 		return $request;
 	}
+	public function parseEvent($xml){
+		$request = new EventRequest();
+		$request->fromUserName = $xml->FromUserName[0];
+		$request->toUserName = $xml->ToUserName[0];
+		$request->createTime = $xml->CreateTime;
+		$request->msgType = $xml->MsgType;
+		$request->event = $xml->Event;
+		$request->eventKey = $xml->EventKey;
+		return $request;
+	}
 }
 
 class WechatRequest{
@@ -110,6 +121,11 @@ class ImageRequest extends WechatRequest{
 class LinkRequest extends WechatRequest{
 	public $msgType = 'link';
 	public $title,$description,$url;
+}
+
+class EventRequest extends WechatRequest{
+	public $msgType = 'event';
+	public $event,$eventKey;
 }
 
 class WechatResponse {
@@ -242,6 +258,6 @@ abstract class WechatListener{
 	abstract function onText(TextRequest $textRequest);
 	abstract function onLocation(LocationRequest $locationRequest);
 	abstract function onImage(ImageRequest $imageRequest);
-	abstract function onLink(LinkRequest $imageRequest);
-	//abstract function onEvent(EventRequest $imageRequest); //TODO
+	abstract function onLink(LinkRequest $linkRequest);
+	abstract function onEvent(EventRequest $eventRequest);
 }
