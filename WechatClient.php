@@ -8,31 +8,48 @@
 class WechatClient{
 	public $listener;
 	public function start($postStr,$print = true){
-		if($this->isValidRequest($postStr)){
+		if($this->isValidRequest()){ //验证微信接口
 			echo $_GET['echostr'];
 			return;
 		}
-		if($this->listener->checkSignature()){
+		if($this->checkSignature()){
 			if (!empty($postStr)) {
 				$postObj = simplexml_load_string($postStr, 'SimpleXMLElement', LIBXML_NOCDATA);
 				if($postObj){
 					$msgType = $postObj->MsgType;
 					$response = null;
-					if($msgType == 'text') {
-						$textRequest = $this->parseText($postObj);
-						if($textRequest->content == 'Hello2BizUser') $response = $this->listener->onFirst($textRequest);
-						else $response = $this->listener->onText($textRequest);
-					}
-					if($msgType == 'location') $response = $this->listener->onLocation($this->parseLocation($postObj));
-					if($msgType == 'image') $response = $this->listener->onImage($this->parseImage($postObj));
-					if($msgType == 'link') $response = $this->listener->onLink($this->parseLink($postObj));
-					if($msgType == 'event') $response = $this->listener->onEvent($this->parseEvent($postObj));
+					$reqclass = ucfirst($msgType).'Request';
+					if(!class_exists($reqclass)) return;
+					$request = new $reqclass();
+					$listener = "on".ucfirst($msgType);
+					if(method_exists($this->listener,$listener))
+						$response = $this->listener->$listener($request->parse($postObj));
 					if($response) {
 						if($print) echo (string)$response;
 						else return $response;
 					}
 				}
 			}
+		}
+	}
+
+	/**
+	 * 检查签名信息
+	 */
+	public function checkSignature(){
+		$signature = $_GET["signature"];
+		$timestamp = $_GET["timestamp"];
+		$nonce = $_GET["nonce"];
+
+		$token = TOKEN;
+		$tmpArr = array($token, $timestamp, $nonce);
+		sort($tmpArr);
+		$tmpStr = implode( $tmpArr );
+		$tmpStr = sha1( $tmpStr );
+		if( $tmpStr == $signature ){
+			return true;
+		}else{
+			return false;
 		}
 	}
 
@@ -43,94 +60,150 @@ class WechatClient{
 	public function addListener($listener){
 		$this->listener = $listener;
 	}
-
-	public function parseText($xml){
-		$request = new TextRequest();
-		$request->fromUserName = $xml->FromUserName[0];
-		$request->toUserName = $xml->ToUserName[0];
-		$request->createTime = $xml->CreateTime;
-		$request->msgType = $xml->MsgType;
-		$request->content = $xml->Content;
-		$request->msgId = $xml->MsgId;
-		return $request;
-	}
-	public function parseLocation($xml){
-		$request = new LocationRequest();
-		$request->fromUserName = $xml->FromUserName[0];
-		$request->toUserName = $xml->ToUserName[0];
-		$request->createTime = $xml->CreateTime;
-		$request->msgType = $xml->MsgType;
-		$request->location_X = $xml->Location_X;
-		$request->location_Y = $xml->Location_Y;
-		$request->label = $xml->Label;
-		$request->scale = $xml->Scale;
-		$request->msgId = $xml->MsgId;
-		return $request;
-	}
-	public function parseImage($xml){
-		$request = new ImageRequest();
-		$request->fromUserName = $xml->FromUserName[0];
-		$request->toUserName = $xml->ToUserName[0];
-		$request->createTime = $xml->CreateTime;
-		$request->msgType = $xml->MsgType;
-		$request->picUrl = $xml->PicUrl;
-		$request->msgId = $xml->MsgId;
-		return $request;
-	}
-	public function parseLink($xml){
-		$request = new LinkRequest();
-		$request->fromUserName = $xml->FromUserName[0];
-		$request->toUserName = $xml->ToUserName[0];
-		$request->createTime = $xml->CreateTime;
-		$request->msgType = $xml->MsgType;
-		$request->title = $xml->Title;
-		$request->description = $xml->Description;
-		$request->url = $xml->Url;
-		$request->msgId = $xml->MsgId;
-		return $request;
-	}
-	public function parseEvent($xml){
-		$request = new EventRequest();
-		$request->fromUserName = $xml->FromUserName[0];
-		$request->toUserName = $xml->ToUserName[0];
-		$request->createTime = $xml->CreateTime;
-		$request->msgType = $xml->MsgType;
-		$request->event = $xml->Event;
-		$request->eventKey = $xml->EventKey;
-		return $request;
-	}
 }
 
-class WechatRequest{
+abstract class WechatRequest{
 	public $toUserName,$fromUserName,$createTime,$msgType,$msgId;
+	public abstract function parse($xml);
 }
+
+/**
+ * 文本消息
+ */
 class TextRequest extends WechatRequest{
 	public $msgType = 'text';
 	public $content;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->content = $xml->Content;
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
 }
 
-class LocationRequest extends WechatRequest{
-	public $msgType = 'location';
-	public $location_X,$location_Y,$scale,$label;
-}
+/**
+ * 图片消息
+ */
 class ImageRequest extends WechatRequest{
 	public $msgType = 'image';
 	public $picUrl;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->picUrl = $xml->PicUrl;
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
 }
 
+/**
+ * 语音消息
+ */
+class VoiceRequest extends WechatRequest{
+	public $msgType = 'voice';
+	public $mediaId,$format,$recognition;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->mediaId = $xml->MediaId;
+		$this->format = $xml->Format;
+		if($xml->Recognition){//语音识别
+			$this->recognition = $xml->Recognition;
+		}
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
+}
+
+/**
+ * 视频消息
+ */
+class VideoRequest extends WechatRequest{
+	public $msgType = 'video';
+	public $mediaId,$thumbMediaId;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->mediaId = $xml->MediaId;
+		$this->thumbMediaId = $xml->ThumbMediaId;
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
+}
+
+/**
+ * 地理位置消息
+ */
+class LocationRequest extends WechatRequest{
+	public $msgType = 'location';
+	public $location_X,$location_Y,$scale,$label;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->location_X = $xml->Location_X;
+		$this->location_Y = $xml->Location_Y;
+		$this->label = $xml->Label;
+		$this->scale = $xml->Scale;
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
+}
+
+/**
+ * 链接消息
+ */
 class LinkRequest extends WechatRequest{
 	public $msgType = 'link';
 	public $title,$description,$url;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->title = $xml->Title;
+		$this->description = $xml->Description;
+		$this->url = $xml->Url;
+		$this->msgId = $xml->MsgId;
+		return $this;
+	}
 }
 
+/**
+ * 事件推送消息
+ */
 class EventRequest extends WechatRequest{
 	public $msgType = 'event';
 	public $event,$eventKey;
+	public function parse($xml){
+		$this->fromUserName = $xml->FromUserName[0];
+		$this->toUserName = $xml->ToUserName[0];
+		$this->createTime = $xml->CreateTime;
+		$this->msgType = $xml->MsgType;
+		$this->event = $xml->Event;
+		$this->eventKey = $xml->EventKey;
+		return $this;
+	}
 }
+
 
 class WechatResponse {
 	public $toUserName,$fromUserName,$createTime;
 }
+
+/**
+ * 回复文本消息
+ */
 class TextResponse extends WechatResponse{
 	private $template = "
 		<xml>
@@ -153,7 +226,124 @@ class TextResponse extends WechatResponse{
 		return $responseStr;
 	}
 }
+/**
+ * 回复图片消息
+ */
+class ImageResponse extends WechatResponse{
+	private $template = "
+		<xml>
+			<ToUserName><![CDATA[%s]]></ToUserName>
+			<FromUserName><![CDATA[%s]]></FromUserName>
+			<CreateTime>%s</CreateTime>
+			<MsgType><![CDATA[image]]></MsgType>
+			<Image>
+				<MediaId><![CDATA[%s]]></MediaId>
+			</Image>
+		</xml>";
+	public $mediaId;
+	public function __construct($toUserName,$fromUserName,$mediaId){
+		$this->toUserName = $toUserName;
+		$this->fromUserName = $fromUserName;
+		$this->createTime = time();
+		$this->mediaId = $mediaId;
+	}
+	public function __toString(){
+		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->$mediaId);
+		return $responseStr;
+	}
+}
+/**
+ * 回复语音消息
+ */
+class VoiceResponse extends WechatResponse{
+	private $template = "
+		<xml>
+			<ToUserName><![CDATA[%s]]></ToUserName>
+			<FromUserName><![CDATA[%s]]></FromUserName>
+			<CreateTime>%s</CreateTime>
+			<MsgType><![CDATA[voice]]></MsgType>
+			<Voice>
+				<MediaId><![CDATA[%s]]></MediaId>
+			</Voice>
+		</xml>";
+	public $mediaId;
+	public function __construct($toUserName,$fromUserName,$mediaId){
+		$this->toUserName = $toUserName;
+		$this->fromUserName = $fromUserName;
+		$this->createTime = time();
+		$this->mediaId = $mediaId;
+	}
+	public function __toString(){
+		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->$mediaId);
+		return $responseStr;
+	}
+}
+/**
+ * 回复视频消息
+ */
+class VideoResponse extends WechatResponse{
+	private $template = "
+		<xml>
+			<ToUserName><![CDATA[%s]]></ToUserName>
+			<FromUserName><![CDATA[%s]]></FromUserName>
+			<CreateTime>%s</CreateTime>
+			<MsgType><![CDATA[video]]></MsgType>
+			<Video>
+				<MediaId><![CDATA[%s]]></MediaId>
+				<ThumbMediaId><![CDATA[%s]]></ThumbMediaId>
+			</Video>
+		</xml>";
+	public $mediaId,$thumbMediaId;
+	public function __construct($toUserName,$fromUserName,$mediaId,$thumbMediaId){
+		$this->toUserName = $toUserName;
+		$this->fromUserName = $fromUserName;
+		$this->createTime = time();
+		$this->mediaId = $mediaId;
+		$this->thumbMediaId = $thumbMediaId;
+	}
+	public function __toString(){
+		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->$mediaId,$this->$thumbMediaId);
+		return $responseStr;
+	}
+}
 
+/**
+ * 回复音乐消息
+ */
+class MusicResponse extends WechatResponse{
+	private $template = "
+		<xml>
+			<ToUserName><![CDATA[%s]]></ToUserName>
+			<FromUserName><![CDATA[%s]]></FromUserName>
+			<CreateTime>%s</CreateTime>
+			<MsgType><![CDATA[music]]></MsgType>
+			<Music>
+				<Title><![CDATA[%s]]></Title>
+				<Description><![CDATA[%s]]></Description>
+				<MusicUrl><![CDATA[%s]]></MusicUrl>
+				<HQMusicUrl><![CDATA[%s]]></HQMusicUrl>
+				<ThumbMediaId><![CDATA[%s]]></ThumbMediaId>
+			</Music>
+		</xml>";
+	public $title,$description,$musicUrl,$hqMusicUrl,$thumbMediaId;
+	public function __construct($toUserName,$fromUserName,$title,$description,$musicUrl,$hqMusicUrl,$thumbMediaId){
+		$this->toUserName = $toUserName;
+		$this->fromUserName = $fromUserName;
+		$this->createTime = time();
+		$this->title = $title;
+		$this->description = $description;
+		$this->musicUrl = $musicUrl;
+		$this->hqMusicUrl = $hqMusicUrl;
+		$this->thumbMediaId = $thumbMediaId;
+	}
+	public function __toString(){
+		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->title,$this->description,$this->musicUrl,$this->hqMusicUrl,$this->thumbMediaId);
+		return $responseStr;
+	}
+}
+/**
+ * 回复图文消息
+ */
 class NewsResponse extends WechatResponse{
 	private $template = "
 		<xml>
@@ -203,61 +393,11 @@ class NewsItem {
 	}
 }
 
-class MusicResponse extends WechatResponse{
-	private $template = "
-		<xml>
-			<ToUserName><![CDATA[%s]]></ToUserName>
-			<FromUserName><![CDATA[%s]]></FromUserName>
-			<CreateTime>%s</CreateTime>
-			<MsgType><![CDATA[music]]></MsgType>
-			<Content><![CDATA[%s]]></Content>
-			<Music>
-				<Title><![CDATA[%s]]></Title>
-				<Description><![CDATA[%s]]></Description>
-				<MusicUrl><![CDATA[%s]]></MusicUrl>
-				<HQMusicUrl><![CDATA[%s]]></HQMusicUrl>
-			</Music>
-			<FuncFlag>0<FuncFlag>
-		</xml>";
-	public $title,$description,$musicUrl,$hqMusicUrl;
-	public function __construct($toUserName,$fromUserName,$title,$description,$musicUrl,$hqMusicUrl){
-		$this->toUserName = $toUserName;
-		$this->fromUserName = $fromUserName;
-		$this->createTime = time();
-		$this->title = $title;
-		$this->description = $description;
-		$this->musicUrl = $musicUrl;
-		$this->hqMusicUrl = $hqMusicUrl;
-	}
-	public function __toString(){
-		$responseStr = sprintf($this->template,$this->toUserName,$this->fromUserName,$this->createTime,$this->title,$this->description,$this->musicUrl,$this->hqMusicUrl);
-		return $responseStr;
-	}
-}
-
 abstract class WechatListener{
-	public function checkSignature(){
-		$signature = $_GET["signature"];
-		$timestamp = $_GET["timestamp"];
-		$nonce = $_GET["nonce"];
-
-		$token = TOKEN;
-		$tmpArr = array($token, $timestamp, $nonce);
-		sort($tmpArr);
-		$tmpStr = implode( $tmpArr );
-		$tmpStr = sha1( $tmpStr );
-		if( $tmpStr == $signature ){
-			return true;
-		}else{
-			return false;
-		}
-	}
-	protected function onFirst(TextRequest $textRequest){
-		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,time(),'Hi');
-	}
-	abstract function onText(TextRequest $textRequest);
-	abstract function onLocation(LocationRequest $locationRequest);
-	abstract function onImage(ImageRequest $imageRequest);
-	abstract function onLink(LinkRequest $linkRequest);
-	abstract function onEvent(EventRequest $eventRequest);
+	function onText(TextRequest $textRequest){}
+	function onLocation(LocationRequest $locationRequest){}
+	function onImage(ImageRequest $imageRequest){}
+	function onLink(LinkRequest $linkRequest){}
+	function onEvent(EventRequest $eventRequest){}
+	function onVoice(VoiceRequest $eventRequest){}
 }

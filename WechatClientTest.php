@@ -4,20 +4,14 @@ require_once 'WechatClient.php';
 
 class TextWechatListener extends WechatListener{
 
-	function onFirst($textRequest){}
 	function onText($textRequest){
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,$textRequest->content);
 	}
-	function onLocation($locationRequest){}
-	function onImage($imageRequest){}
-	function checkSignature(){
-		return true;
-	}
+
 }
 
 class NewsWechatListener extends WechatListener{
 
-	function onFirst($textRequest){}
 	function onText($textRequest){
 		$items = [];
 		for($i=0;$i<1;$i++){
@@ -29,11 +23,6 @@ class NewsWechatListener extends WechatListener{
 			$items[] = $item;
 		}
 		return new NewsResponse($textRequest->fromUserName,$textRequest->toUserName,$items);
-	}
-	function onLocation($locationRequest){}
-	function onImage($imageRequest){}
-	function checkSignature(){
-		return true;
 	}
 
 }
@@ -56,7 +45,8 @@ class WechatClientTest extends PHPUnit_Framework_TestCase{
 			 </xml>
 		";
 		$xml = simplexml_load_string($first, 'SimpleXMLElement', LIBXML_NOCDATA);
-		$request = $this->target->parseText($xml);
+		$tr = new TextRequest();
+		$request = $tr->parse($xml);
 		$response = $this->target->start($first,false);
 		$this->assertEquals((string)$response->toUserName,(string)$request->fromUserName);
 	}

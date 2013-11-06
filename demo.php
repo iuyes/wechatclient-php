@@ -1,10 +1,8 @@
 <?php
 define('TOKEN','YOUR_TOKEN');
 require_once 'WechatClient.php';
-class TestWechatListener extends WechatListener{
+class DemoWechatListener extends WechatListener{
 
-	function onFirst(TextRequest $textRequest){ //用户第一次关注时
-	}
 	function onText(TextRequest $textRequest){ //用户发送文本内容时
 		return new TextResponse($textRequest->fromUserName,$textRequest->toUserName,$textRequest->content);
 	}
@@ -23,7 +21,7 @@ class TestWechatListener extends WechatListener{
 }
 
 $wechatClient = new WechatClient();
-$listener = new TestWechatListener();
+$listener = new DemoWechatListener();
 $wechatClient->addListener($listener);
 $wechatClient->start($GLOBALS["HTTP_RAW_POST_DATA"]);
 
